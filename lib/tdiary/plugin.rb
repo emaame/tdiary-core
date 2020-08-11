@@ -1,4 +1,3 @@
-# -*- coding: utf-8; -*-
 #
 # class Plugin
 #  plugin management class
@@ -33,7 +32,7 @@ module TDiary
 			@content_procs = {}
 			@startup_procs = []
 			@cookies = []
-			@javascripts = []
+			@javascripts = {}
 			@javascript_setting = []
 
 			params.each do |key, value|
@@ -81,31 +80,19 @@ module TDiary
 			@resource_loaded = false
 			begin
 				res_file = File::dirname( file ) + "/#{@conf.lang}/" + File::basename( file )
-				open( res_file.untaint ) do |src|
-					instance_eval( src.read.untaint, "(plugin/#{@conf.lang}/#{File::basename( res_file )})", 1 )
+				open( res_file ) do |src|
+					instance_eval( src.read, "(plugin/#{@conf.lang}/#{File::basename( res_file )})", 1 )
 				end
 				@resource_loaded = true
 			rescue IOError, Errno::ENOENT
 			end
-			File::open( file.untaint ) do |src|
-				instance_eval( src.read.untaint, "(plugin/#{File::basename( file )})", 1 )
+			File::open( file ) do |src|
+				instance_eval( src.read, "(plugin/#{File::basename( file )})", 1 )
 			end
 		end
 
-		def eval_src( src, secure )
-			self.taint
-			@conf.taint
-			@title_procs.taint
-			@body_enter_procs.taint
-			@body_leave_procs.taint
-			@section_index.taint
-			@section_enter_procs.taint
-			@comment_leave_procs.taint
-			@subtitle_procs.taint
-			@section_leave_procs.taint
-			ret = Safe::safe( secure ? 4 : 1 ) do
-				eval( src, binding, "(TDiary::Plugin#eval_src)", 1 )
-			end
+		def eval_src( src )
+			ret = eval( src, binding, "(TDiary::Plugin#eval_src)", 1 )
 			@conf.io_class.plugin_close(@storage)
 			return ret
 		end
@@ -117,8 +104,8 @@ module TDiary
 			end
 		end
 
-		def add_header_proc( block = Proc::new )
-			@header_procs << block
+		def add_header_proc( &block )
+			@header_procs << block if block_given?
 		end
 
 		def header_proc
@@ -129,8 +116,8 @@ module TDiary
 			r.join.chomp
 		end
 
-		def add_footer_proc( block = Proc::new )
-			@footer_procs << block
+		def add_footer_proc( &block )
+			@footer_procs << block if block_given?
 		end
 
 		def footer_proc
@@ -141,19 +128,17 @@ module TDiary
 			r.join.chomp
 		end
 
-		def add_update_proc( block = Proc::new )
-			@update_procs << block
+		def add_update_proc( &block )
+			@update_procs << block if block_given?
 		end
 
 		def update_proc
-			@update_procs.each do |proc|
-				proc.call
-			end
+			@update_procs.each(&:call)
 			''
 		end
 
-		def add_title_proc( block = Proc::new )
-			@title_procs << block
+		def add_title_proc( &block )
+			@title_procs << block if block_given?
 		end
 
 		def title_proc( date, title )
@@ -163,8 +148,8 @@ module TDiary
 			apply_plugin( title )
 		end
 
-		def add_body_enter_proc( block = Proc::new )
-			@body_enter_procs << block
+		def add_body_enter_proc( &block )
+			@body_enter_procs << block if block_given?
 		end
 
 		def body_enter_proc( date )
@@ -175,8 +160,8 @@ module TDiary
 			r.join
 		end
 
-		def add_body_leave_proc( block = Proc::new )
-			@body_leave_procs << block
+		def add_body_leave_proc( &block )
+			@body_leave_procs << block if block_given?
 		end
 
 		def body_leave_proc( date )
@@ -187,8 +172,8 @@ module TDiary
 			r.join
 		end
 
-		def add_section_enter_proc( block = Proc::new )
-			@section_enter_procs << block
+		def add_section_enter_proc( &block )
+			@section_enter_procs << block if block_given?
 		end
 
 		def section_enter_proc( date )
@@ -200,8 +185,8 @@ module TDiary
 			r.join
 		end
 
-		def add_subtitle_proc( block = Proc::new )
-			@subtitle_procs << block
+		def add_subtitle_proc( &block )
+			@subtitle_procs << block if block_given?
 		end
 
 		def subtitle_proc( date, subtitle )
@@ -211,8 +196,8 @@ module TDiary
 			apply_plugin( subtitle )
 		end
 
-		def add_section_leave_proc( block = Proc::new )
-			@section_leave_procs << block
+		def add_section_leave_proc( &block )
+			@section_leave_procs << block if block_given?
 		end
 
 		def section_leave_proc( date )
@@ -223,8 +208,8 @@ module TDiary
 			r.join
 		end
 
-		def add_comment_leave_proc( block = Proc::new )
-			@comment_leave_procs << block
+		def add_comment_leave_proc( &block )
+			@comment_leave_procs << block if block_given?
 		end
 
 		def comment_leave_proc( date )
@@ -235,8 +220,8 @@ module TDiary
 			r.join
 		end
 
-		def add_edit_proc( block = Proc::new )
-			@edit_procs << block
+		def add_edit_proc( &block )
+			@edit_procs << block if block_given?
 		end
 
 		def edit_proc( date )
@@ -247,8 +232,8 @@ module TDiary
 			r.join
 		end
 
-		def add_form_proc( block = Proc::new )
-			@form_procs << block
+		def add_form_proc( &block )
+			@form_procs << block if block_given?
 		end
 
 		def form_proc( date )
@@ -259,11 +244,11 @@ module TDiary
 			r.join
 		end
 
-		def add_conf_proc( key, label, genre = 'etc', block = Proc::new )
+		def add_conf_proc( key, label, genre = 'etc', &block )
 			return unless @mode =~ /^(conf|saveconf)$/
 			genre_and_key = "#{genre}:#{key}"
 			@conf_keys << genre_and_key unless @conf_keys.index( genre_and_key )
-			@conf_procs[key] = [label, block]
+			@conf_procs[key] = [label, block] if block_given?
 		end
 
 		def each_conf_genre
@@ -312,23 +297,19 @@ module TDiary
 		end
 
 		def add_cookie( cookie )
-			begin
-				@cookies << cookie
-			rescue SecurityError
-				raise SecurityError, "can't use cookies in plugin when secure mode"
-			end
+			@cookies << cookie
 		end
 
-		def enable_js( script )
-			@javascripts << script unless @javascripts.index( script )
+		def enable_js( script, async: false )
+			@javascripts[script] = { async: async }
 		end
 
 		def add_js_setting( var, val = 'new Object()' )
 			@javascript_setting << [var, val]
 		end
 
-		def add_content_proc( key, block = Proc::new )
-			@content_procs[key] = block
+		def add_content_proc( key, &block )
+			@content_procs[key] = block if block_given?
 		end
 
 		def content_proc( key, date )
@@ -338,8 +319,8 @@ module TDiary
 			@content_procs[key].call( date )
 		end
 
-		def add_startup_proc( block = Proc::new )
-			@startup_procs << block
+		def add_startup_proc( &block )
+			@startup_procs << block if block_given?
 		end
 
 		def startup_proc( app )
@@ -356,13 +337,10 @@ module TDiary
 			return '' unless str
 			r = str.dup
 			if @conf.options['apply_plugin'] and r.index( '<%' ) then
-				r = r.untaint if $SAFE < 3
-				Safe::safe( @conf.secure ? 4 : 1 ) do
-					begin
-						r = ERB::new( r ).result( binding )
-					rescue Exception
-						r = %Q|<p class="message">Invalid Text</p>#{r}|
-					end
+				begin
+					r = ERB::new( r ).result( binding )
+				rescue Exception
+					r = %Q|<p class="message">Invalid Text</p>#{r}|
 				end
 			end
 			r = remove_tag( r ) if remove_tag
@@ -382,7 +360,7 @@ module TDiary
 		end
 
 		def help( name )
-			%Q[<span class="help-icon"><a href="http://docs.tdiary.org/#{h @conf.lang}/?#{h name}" target="_blank"><img src="#{theme_url}/help.png" width="19" height="19" alt="Help"></a></span>]
+			%Q[<span class="help-icon"><a href="https://github.com/tdiary/tdiary-docs-#{h @conf.lang}/wiki/#{h name}" target="_blank"><img src="#{theme_url}/help.png" width="19" height="19" alt="Help"></a></span>]
 		end
 
 		def method_missing( *m )

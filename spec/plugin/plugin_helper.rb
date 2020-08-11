@@ -1,4 +1,4 @@
-$:.unshift File.expand_path(File.join(File.dirname(__FILE__), '../../misc/plugin')).untaint
+$:.unshift File.expand_path(File.join(File.dirname(__FILE__), '../../misc/plugin'))
 
 require File.dirname(__FILE__) + "/../spec_helper"
 require 'erb'
@@ -20,22 +20,27 @@ class PluginFake
 		@conf_procs = []
 		@body_enter_procs = []
 		@body_leave_procs = []
+		@content_procs = {}
 	end
 
 	def add_conf_proc( key, label, genre=nil, &block )
 		@conf_procs << block
 	end
 
-	def add_header_proc( block = Proc::new )
-		@header_procs << block
+	def add_header_proc( &block )
+		@header_procs << block if block_given?
 	end
 
-	def add_footer_proc( block = Proc::new )
-		@footer_procs << block
+	def add_footer_proc( &block )
+		@footer_procs << block if block_given?
 	end
 
-	def add_update_proc( block = Proc::new )
-		@update_procs << block
+	def add_update_proc( &block )
+		@update_procs << block if block_given?
+	end
+
+	def add_content_proc( key, &block )
+		@content_procs[key] = block if block_given?
 	end
 
 	def conf_proc
@@ -62,8 +67,8 @@ class PluginFake
 		r.join.chomp
 	end
 
-	def add_body_enter_proc( block = Proc::new )
-		@body_enter_procs << block
+	def add_body_enter_proc( &block )
+		@body_enter_procs << block if block_given?
 	end
 
 	def body_enter_proc( date )
@@ -74,8 +79,8 @@ class PluginFake
 		r.join.chomp
 	end
 
-	def add_body_leave_proc( block = Proc::new )
-		@body_leave_procs << block
+	def add_body_leave_proc( &block )
+		@body_leave_procs << block if block_given?
 	end
 
 	def body_leave_proc( date )
@@ -86,11 +91,15 @@ class PluginFake
 		r.join.chomp
 	end
 
+	def content_proc( key, date )
+		@content_procs[key].call( date )
+	end
+
 	class Config
 
 		attr_accessor :index, :update, :author_name, :author_mail, :index_page,
 			:html_title, :theme, :css, :date_format, :referer_table, :options, :cgi,
-			:plugin_path, :lang, :style, :secure,
+			:plugin_path, :lang, :style, :description, :html_lang,
 			:io_class
 
 		def initialize

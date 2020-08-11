@@ -1,0 +1,5 @@
+.bundle
+.htpasswd
+vendor/bundle
+public/assets/*
+tdiary.pid

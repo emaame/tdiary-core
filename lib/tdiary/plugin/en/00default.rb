@@ -1,4 +1,3 @@
-# -*- coding: utf-8; -*-
 #
 # en/00default.rb: English resources of 00default.rb.
 #
@@ -40,7 +39,7 @@ end
 # link to HOWTO write diary
 #
 def style_howto
-	%Q|/<a href="http://docs.tdiary.org/en/?#{h @conf.style}Style">How to write</a>|
+	%Q|/<a href="https://github.com/tdiary/tdiary-docs-en/wiki#{h @conf.style}Style">How to write</a>|
 end
 
 #
@@ -160,6 +159,7 @@ add_conf_proc( 'default', 'Site information', 'basic' ) do
 
 	<h3 class="subtitle">Site banner</h3>
 	<p>URL for the banner image of your site. makerss plugin will use this value to make RSS. Can be left blank.</p>
+	<p>If you want to use the default banner of tDiary, use your diary's URL + "/theme/ogimage.png".</p>
 	<p><input name="banner" value="#{h @conf.banner}" size="60"></p>
 
 	<h3 class="subtitle">Permit display in Frames</h3>

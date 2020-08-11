@@ -1,20 +1,22 @@
 source 'https://rubygems.org'
 
 gem 'rack'
-gem 'sprockets'
 gem 'hikidoc'
 gem 'fastimage'
 gem 'emot'
 gem 'mail'
+gem 'rake'
 
 group :development do
   gem 'pit', require: false
   gem 'racksh', require: false
-  gem 'rake'
   gem 'redcarpet'
+  gem 'octokit'
+  gem 'mime-types'
+  gem "ruby-debug-ide"
+  gem "debase"
 
   group :test do
-    gem 'pry-byebug', platforms: [:ruby_20, :ruby_21]
     gem 'test-unit'
     gem 'rspec'
     gem 'capybara', require: 'capybara/rspec'
@@ -22,9 +24,9 @@ group :development do
     gem 'launchy'
     gem 'sequel'
     gem 'sqlite3'
-    gem 'jasmine'
+    gem 'jasmine', '< 3'
     gem 'simplecov', require: false
-    gem 'coveralls', '~> 0.7.12', require: false
+    gem 'coveralls', '~> 0.8', require: false
   end
 end
 

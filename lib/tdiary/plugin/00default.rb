@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # 00default.rb: default plugins
 #
@@ -181,7 +180,7 @@ def calendar
 end
 
 #
-# insert file. only enable unless @secure.
+# insert file
 #
 def insert( file )
 	begin
@@ -195,7 +194,7 @@ end
 # define DOCTYPE
 #
 def doctype
-	%Q[<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">]
+	%Q|<!DOCTYPE html>|
 end
 
 #
@@ -204,20 +203,18 @@ end
 add_header_proc do
 	calc_links
 	<<-HEADER
-	<meta http-equiv="Content-Type" content="text/html; charset=#{h charset}">
+	<meta charset="#{h charset}">
 	<meta name="generator" content="tDiary #{h TDIARY_VERSION}">
 	<meta name="viewport" content="width=device-width,initial-scale=1">
-	#{last_modified_header}
-	#{content_script_type}
 	#{author_name_tag}
 	#{author_mail_tag}
 	#{index_page_tag}
 	#{icon_tag}
-	#{default_ogp}
+	#{ogp_tag}
 	#{description_tag}
+	#{css_tag.chomp}
 	#{jquery_tag.chomp}
 	#{script_tag.chomp}
-	#{css_tag.chomp}
 	#{title_tag.chomp}
 	#{robot_control.chomp}
 	HEADER
@@ -265,15 +262,11 @@ def charset
 end
 
 def last_modified_header
-	if @last_modified then
-		%Q|<meta http-equiv="Last-Modified" content="#{CGI::rfc1123_date( @last_modified )}">|
-	else
-		''
-	end
+	''
 end
 
 def content_script_type
-	%Q[<meta http-equiv="Content-Script-Type" content="text/javascript; charset=#{h charset}">]
+	''
 end
 
 def author_name_tag
@@ -321,6 +314,8 @@ def icon_tag
 	if @conf.icon and not(@conf.icon.empty?) then
 		if /\.ico$/ =~ @conf.icon then
 			%Q[<link rel="shortcut icon" href="#{h @conf.icon}">]
+		elsif /\.svg$/ =~ @conf.icon then
+			%Q[<link rel="icon" href="#{h @conf.icon}" type="image/svg+xml">]
 		else
 			%Q[<link rel="icon" href="#{h @conf.icon}">]
 		end
@@ -329,24 +324,32 @@ def icon_tag
 	end
 end
 
-def default_ogp
-	if @conf.options2['sp.selected'] && @conf.options2['sp.selected'].include?('ogp.rb')
-		if defined?(@conf.banner)
-			%Q[<meta content="#{base_url}images/ogimage.png" property="og:image">]
-		end
-	else
-		uri = @conf.index.dup
-		uri[0, 0] = base_url if %r|^https?://|i !~ @conf.index
-		uri.gsub!( %r|/\./|, '/' )
-		image = File.join(uri, "#{theme_url}/ogimage.png")
-		if @mode == 'day' then
-			uri += anchor( @date.strftime( '%Y%m%d' ) )
-		end
-		%Q[<meta content="#{title_tag.gsub(/<[^>]*>/, "")}" property="og:title">
-		<meta content="#{(@mode == 'day') ? 'article' : 'website'}" property="og:type">
-		<meta content="#{h image}" property="og:image">
-		<meta content="#{h uri}" property="og:url">]
+def ogp_tag
+	ogp = {
+		'og:title' => title_tag.gsub(/<[^>]*>/, ""),
+	}
+
+	if @conf.banner && !@conf.banner.empty?
+		ogp['og:image'] = @conf.banner
 	end
+
+	uri = @conf.index.dup
+	uri[0, 0] = base_url if %r|^https?://|i !~ @conf.index
+	uri.gsub!( %r|/\./|, '/' )
+	if @mode == 'day' then
+		ogp['og:type'] = 'article'
+		ogp['article:author'] = @conf.author_name
+		ogp['og:site_name'] = @conf.html_title
+		ogp['og:url'] = uri + anchor( @date.strftime( '%Y%m%d' ) )
+	else
+		ogp['og:type'] = 'website'
+		ogp['og:description'] = @conf.description
+		ogp['og:url'] = uri
+	end
+
+	ogp.map { |k, v|
+		%Q|<meta property="#{k}" content="#{h(v)}">|
+	}.join("\n")
 end
 
 def description_tag
@@ -358,14 +361,14 @@ def description_tag
 end
 
 def jquery_tag
-	%Q[<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8/jquery.min.js" type="text/javascript"></script>]
+	%Q[<script src="//ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>]
 end
 
-enable_js( '00default.js' )
+enable_js( '00default.js', async: false )
 add_js_setting( '$tDiary.style', "'#{@conf.style.downcase.sub( /\Ablog/, '' )}'" )
 
 if /^form|edit|preview|showcomment/ =~ @mode
-	enable_js( '02edit.js' )
+	enable_js( '02edit.js', async: true )
 end
 
 def script_tag_query_string
@@ -379,15 +382,16 @@ end
 def script_tag
 	require 'uri'
 	query = script_tag_query_string
-	html = @javascripts.sort.map {|script|
+	html = @javascripts.keys.sort.map {|script|
+		async = @javascripts[script][:async] ? "async" : ""
 		if URI(script).scheme or script =~ %r|\A//|
-			%Q|<script src="#{script}" type="text/javascript"></script>|
+			%Q|<script src="#{script}" #{async}></script>|
 		else
-			%Q|<script src="#{js_url}/#{script}#{query}" type="text/javascript"></script>|
+			%Q|<script src="#{js_url}/#{script}#{query}" #{async}></script>|
 		end
 	}.join( "\n\t" )
 	html << "\n" << <<-HEAD
-		<script type="text/javascript"><!--
+		<script><!--
 		#{@javascript_setting.map{|a| "#{a[0]} = #{a[1]};"}.join("\n\t\t")}
 		//-->
 		</script>
@@ -399,23 +403,19 @@ def theme_url
 end
 
 def css_tag
+	location, name = (@conf.theme || '').split(%r[/], 2)
 	if @mode =~ /conf$/ then
 		css = "#{h theme_url}/conf.css"
-	elsif @conf.theme and @conf.theme.length > 0
-		location, name = @conf.theme.split(/\//, 2)
-		unless name
-			name = location
-			location = 'local'
-		end
+	elsif name && name.length > 0
 		css = __send__("theme_url_#{location}", name)
+		css = theme_url_local('default') unless css # the location is not defined
 	else
 		css = @conf.css
 	end
 	title = File::basename( css, '.css' )
 	<<-CSS
-<meta http-equiv="content-style-type" content="text/css">
-	<link rel="stylesheet" href="#{h theme_url}/base.css" type="text/css" media="all">
-	<link rel="stylesheet" href="#{h css}" title="#{h title}" type="text/css" media="all">
+<link rel="stylesheet" href="#{h theme_url}/base.css" media="all">
+	<link rel="stylesheet" href="#{h css}" title="#{h title}" media="all">
 	CSS
 end
 
@@ -613,7 +613,7 @@ add_footer_proc do
 	elsif hide_comment_day_limit
 		r = ''
 		r << <<-JS
-			<script type="text/javascript"><!--
+			<script><!--
 			document.getElementById('comment-form-section').innerHTML = '#{comment_form_text.gsub( /[\r\n]/, '' ).gsub( /<\//, '<\\/' )}';
 			//--></script>
 		JS
@@ -720,8 +720,7 @@ def comment_mail_send
 	rescue
 		rmail = File::open( "#{TDiary::PATH}/../views/mail.rtxt" ){|f| f.read }
 	end
-	text = @conf.to_mail( ERB::new( rmail.untaint ).result( binding ) )
-	receivers.each { |i| i.untaint }
+	text = @conf.to_mail( ERB::new( rmail ).result( binding ) )
 	comment_mail( text, receivers )
 end
 
@@ -756,7 +755,7 @@ def brl; '<br clear="left">';  end
 # preferences (saving methods)
 #
 if @mode =~ /conf|saveconf/
-	enable_js( '01conf.js' )
+	enable_js( '01conf.js', async: true )
 end
 
 # basic (default)
@@ -778,8 +777,8 @@ end
 # header/footer (header)
 def saveconf_header
 	if @mode == 'saveconf' then
-		@conf.header = @conf.to_native( @cgi.params['header'][0] ).lines.map{|s| s.chomp}.join( "\n" ).sub( /\n+\z/, '' )
-		@conf.footer = @conf.to_native( @cgi.params['footer'][0] ).lines.map{|s| s.chomp}.join( "\n" ).sub( /\n+\z/, '' )
+		@conf.header = @conf.to_native( @cgi.params['header'][0] ).lines.map(&:chomp).join( "\n" ).sub( /\n+\z/, '' )
+		@conf.footer = @conf.to_native( @cgi.params['footer'][0] ).lines.map(&:chomp).join( "\n" ).sub( /\n+\z/, '' )
 	end
 end
 
@@ -824,10 +823,9 @@ def conf_theme_list
 end
 
 def theme_list_local(list)
-	theme_paths = [::TDiary::PATH, TDiary.server_root].map {|d| "#{d}/theme/*" }
-	Dir::glob( theme_paths ).sort.map {|dir|
+	Dir::glob( theme_paths_local ).sort.map {|dir|
 		theme = dir.sub( %r[.*/theme/], '')
-		next unless FileTest::file?( "#{dir}/#{theme}.css".untaint )
+		next unless FileTest::file?( "#{dir}/#{theme}.css" )
 		name = theme.split( /_/ ).collect{|s| s.capitalize}.join( ' ' )
 		list << ["local/#{theme}",name]
 	}
@@ -836,6 +834,10 @@ end
 
 def theme_url_local(theme)
 	"#{h theme_url}/#{h theme}/#{h theme}.css"
+end
+
+def theme_paths_local
+	[::TDiary::PATH, TDiary.server_root].map {|d| "#{d}/theme/*" }
 end
 
 def saveconf_theme
@@ -968,7 +970,7 @@ def saveconf_recommendfilter
 		@conf['spamfilter.max_uris'] = "1"
 		@conf['spamfilter.resolv_check'] = true
 		@conf['spamfilter.resolv_check_mode'] = false
-		@conf['spamlookup.domain.list'] = "bsb.spamlookup.net\r\nsc.surbl.org\r\nrbl.bulkfeeds.jp"
+		@conf['spamlookup.domain.list'] = "bsb.spamlookup.net\r\nmulti.surbl.org\r\nrbl.bulkfeeds.jp"
 		@conf['spamlookup.ip.list'] = "dnsbl.spam-champuru.livedoor.com"
 		@conf['spamlookup.safe_domain.list'] = "www.google.com\r\nwww.google.co.jp\r\nezsch.ezweb.ne.jp\r\nwww.yahoo.co.jp\r\nsearch.mobile.yahoo.co.jp\r\nwww.bing.com"
 	end

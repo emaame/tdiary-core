@@ -1,4 +1,3 @@
-# -*- coding: utf-8; -*-
 #
 # ja/00default.rb: Japanese resources of 00default.rb.
 #
@@ -74,7 +73,7 @@ end
 # link to HOWTO write diary
 #
 def style_howto
-	%Q|/<a href="http://docs.tdiary.org/ja/?#{h @conf.style}%A5%B9%A5%BF%A5%A4%A5%EB">書き方</a>|
+	%Q|/<a href="https://github.com/tdiary/tdiary-docs-ja/wiki/#{h @conf.style}%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB">書き方</a>|
 end
 
 #
@@ -194,6 +193,7 @@ add_conf_proc( 'default', 'サイトの情報', 'basic' ) do
 
 	<h3 class="subtitle">バナー画像</h3>
 	<p>この日記を表す画像(バナー)があればそのURLを指定します。makerssプラグインなどでRSSを出力する場合などに使われます。何も入力しなくてもかまいません。</p>
+	<p>tDiary 標準のバナーを用いる場合は日記を設置している URL に "/theme/ogimage.png" を付与して入力してください。</p>
 	<p><input name="banner" value="#{h @conf.banner}" size="70"></p>
 
 	<h3 class="subtitle">フレーム内表示</h3>
